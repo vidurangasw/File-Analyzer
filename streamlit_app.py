@@ -132,7 +132,8 @@ if st.button("Download & Analyze Excel Files") and "excel_links" in st.session_s
     if filepaths:
         st.info(f"Downloaded {len(filepaths)} files. Starting analysis...")
         df_result = analyze_files(filepaths, sheet_name, columns)
-        st.dataframe(df_result)
+        st.markdown("### 🔗 Analysis Results with File Links")
+        st.markdown(df_result.to_markdown(index=False), unsafe_allow_html=True)
         output = io.BytesIO()
         df_result.to_excel(output, index=False, engine='openpyxl')
         output.seek(0)
