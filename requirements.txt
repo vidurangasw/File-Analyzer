@@ -1,6 +1,10 @@
 streamlit
 pandas
 openpyxl
-beautifulsoup4
 requests
+beautifulsoup4
 lxml
+python-docx
+PyPDF2
+matplotlib
+seaborn
