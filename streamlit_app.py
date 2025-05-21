@@ -117,7 +117,9 @@ def analyze_files(filepaths, sheet, columns):
     for path in filepaths:
         try:
             df = pd.read_excel(path, sheet_name=sheet)
-            row = {"File": os.path.basename(path)}
+            link = next((url for url in st.session_state["excel_links"] if os.path.basename(url) == os.path.basename(path)), None)
+            display_link = f"[Open File]({link})" if link else os.path.basename(path)
+            row = {"File": display_link}
             row.update(analyze_df(df, columns))
             results.append(row)
         except Exception as e:
