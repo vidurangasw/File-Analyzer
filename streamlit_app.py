@@ -10,6 +10,7 @@ import seaborn as sns
 import docx
 import PyPDF2
 import openai
+from transformers import pipeline
 
 st.set_page_config(page_title="Excel & Document Analyzer", layout="wide")
 st.title("📊 File Analyzer: Excel, PDF, DOC with Visualization & AI Insights")
@@ -20,21 +21,31 @@ api_key = st.secrets.get("openai_api_key", os.getenv("OPENAI_API_KEY"))
 # Initialize OpenAI client only if API key is available
 client = openai.OpenAI(api_key=api_key) if api_key else None
 
-def generate_ai_summary(text):
-    try:
-        if not client:
-            return "OpenAI API key not found. Set it in Streamlit secrets or environment."
+# Load HuggingFace summarizer
+hf_summarizer = pipeline("summarization", model="google/flan-t5-small")
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a data analyst. Summarize the following data insights in natural language."},
-                {"role": "user", "content": text}
-            ]
-        )
-        return response.choices[0].message.content
+def generate_ai_summary(text):
+    if not text.strip():
+        return "No input provided for summarization."
+    try:
+        if client:
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a data analyst. Summarize the following data insights in natural language."},
+                    {"role": "user", "content": text}
+                ]
+            )
+            return response.choices[0].message.content
+        else:
+            raise Exception("OpenAI client not initialized.")
     except Exception as e:
-        return f"AI summary generation failed: {e}"
+        st.warning(f"Falling back to HuggingFace model due to: {e}")
+        try:
+            result = hf_summarizer(text[:1000])  # Truncate for token limits
+            return result[0]['summary_text']
+        except Exception as he:
+            return f"HuggingFace summarization failed: {he}"
 
 url = st.text_input("Enter a webpage URL with downloadable .xlsx files:", "https://www.epa.gov/lmop/project-and-landfill-data-state")
 
