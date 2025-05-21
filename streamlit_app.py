@@ -15,15 +15,16 @@ st.set_page_config(page_title="Excel & Document Analyzer", layout="wide")
 st.title("📊 File Analyzer: Excel, PDF, DOC with Visualization & AI Insights")
 
 # Optional: Add your OpenAI API key securely in Streamlit secrets
-# st.secrets["openai_api_key"] or use environment variable
-openai.api_key = st.secrets.get("openai_api_key", os.getenv("OPENAI_API_KEY"))
+api_key = st.secrets.get("openai_api_key", os.getenv("OPENAI_API_KEY"))
+
+# Initialize OpenAI client only if API key is available
+client = openai.OpenAI(api_key=api_key) if api_key else None
 
 def generate_ai_summary(text):
     try:
-        if not openai.api_key:
+        if not client:
             return "OpenAI API key not found. Set it in Streamlit secrets or environment."
 
-        client = openai.OpenAI()
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
