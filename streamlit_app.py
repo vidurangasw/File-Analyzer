@@ -171,6 +171,7 @@ if uploaded_file is not None:
                 st.pyplot(fig)
 
             # AI summary
+            # AI summary
             if not df_uploaded.empty:
                 st.write("### AI Summary")
                 summary = []
@@ -185,6 +186,16 @@ if uploaded_file is not None:
                 st.write("### 📉 AI-Powered Graph Summary")
                 graph_insight = summarize_graph_insights(df_uploaded, col_list)
                 st.info(graph_insight)
+
+            # Map visualization if coordinates available
+            if 'Latitude' in df_uploaded.columns and 'Longitude' in df_uploaded.columns:
+                try:
+                    lat_lon_df = df_uploaded[['Latitude', 'Longitude']].dropna()
+                    lat_lon_df = lat_lon_df.rename(columns={"Latitude": "lat", "Longitude": "lon"})
+                    st.write("### 🗺️ Map of Locations")
+                    st.map(lat_lon_df)
+                except Exception as e:
+                    st.warning(f"Could not display map: {e}")
 
         except Exception as e:
             st.error(f"Error reading Excel file: {e}")
