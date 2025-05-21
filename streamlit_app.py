@@ -47,6 +47,18 @@ def generate_ai_summary(text):
         except Exception as he:
             return f"HuggingFace summarization failed: {he}"
 
+def summarize_graph_insights(df, col_list):
+    summaries = []
+    for col in col_list:
+        vals = pd.to_numeric(df[col], errors='coerce').dropna()
+        if not vals.empty:
+            description = vals.describe()
+            summaries.append(
+                f"The distribution of **{col}** has a mean of {description['mean']:.2f}, a median of {vals.median():.2f}, "
+                f"and standard deviation of {description['std']:.2f}. The minimum is {description['min']:.2f} and maximum is {description['max']:.2f}."
+            )
+    return generate_ai_summary("\n".join(summaries))
+
 url = st.text_input("Enter a webpage URL with downloadable .xlsx files:", "https://www.epa.gov/lmop/project-and-landfill-data-state")
 
 # Extract downloadable links
@@ -169,6 +181,10 @@ if uploaded_file is not None:
                 ai_response = generate_ai_summary("\n".join(summary))
                 st.markdown("#### 🤖 AI-Powered Summary:")
                 st.success(ai_response)
+
+                st.write("### 📉 AI-Powered Graph Summary")
+                graph_insight = summarize_graph_insights(df_uploaded, col_list)
+                st.info(graph_insight)
 
         except Exception as e:
             st.error(f"Error reading Excel file: {e}")
