@@ -9,9 +9,30 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import docx
 import PyPDF2
+import openai
 
 st.set_page_config(page_title="Excel & Document Analyzer", layout="wide")
 st.title("📊 File Analyzer: Excel, PDF, DOC with Visualization & AI Insights")
+
+# Optional: Add your OpenAI API key securely in Streamlit secrets
+# st.secrets["openai_api_key"] or use environment variable
+openai.api_key = st.secrets.get("openai_api_key", os.getenv("OPENAI_API_KEY"))
+
+def generate_ai_summary(text):
+    try:
+        if not openai.api_key:
+            return "OpenAI API key not found. Set it in Streamlit secrets or environment."
+
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a data analyst. Summarize the following data insights in natural language."},
+                {"role": "user", "content": text}
+            ]
+        )
+        return response['choices'][0]['message']['content']
+    except Exception as e:
+        return f"AI summary generation failed: {e}"
 
 url = st.text_input("Enter a webpage URL with downloadable .xlsx files:", "https://www.epa.gov/lmop/project-and-landfill-data-state")
 
@@ -131,8 +152,10 @@ if uploaded_file is not None:
                 for col in col_list:
                     vals = pd.to_numeric(df_uploaded[col], errors='coerce').dropna()
                     if not vals.empty:
-                        summary.append(f"- Column **{col}** has mean `{vals.mean():.2f}`, median `{vals.median():.2f}`, and std `{vals.std():.2f}`")
-                st.markdown("\n".join(summary))
+                        summary.append(f"Column {col}: mean={vals.mean():.2f}, median={vals.median():.2f}, std={vals.std():.2f}")
+                ai_response = generate_ai_summary("\n".join(summary))
+                st.markdown("#### 🤖 AI-Powered Summary:")
+                st.success(ai_response)
 
         except Exception as e:
             st.error(f"Error reading Excel file: {e}")
