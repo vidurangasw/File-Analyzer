@@ -35,11 +35,12 @@ if st.button("Fetch Excel File Links"):
     else:
         st.warning("No Excel files found.")
 
-sheet_name = st.text_input("Enter the sheet name to analyze:", "LMOP Database")
 columns = st.text_input("Enter column names to analyze (comma-separated):", "Actual MW Generation, Rated MW Capacity")
 
 uploaded_file = st.file_uploader("Upload Excel, PDF, or DOC/DOCX file", type=["xlsx", "pdf", "doc", "docx"])
+selected_sheet_name = None
 
+# Analyze Excel manually downloaded from web URL
 def analyze_df(df, columns):
     col_list = [c.strip() for c in columns.split(',') if c.strip()]
     row = {}
@@ -78,6 +79,7 @@ def analyze_files(filepaths, sheet, columns):
     return pd.DataFrame(results)
 
 if st.button("Download & Analyze Excel Files") and "excel_links" in st.session_state:
+    sheet_name = st.text_input("Enter the sheet name to analyze:", "LMOP Database")
     filepaths = download_excel_files(st.session_state["excel_links"])
     if filepaths:
         st.info(f"Downloaded {len(filepaths)} files. Starting analysis...")
@@ -88,33 +90,52 @@ if st.button("Download & Analyze Excel Files") and "excel_links" in st.session_s
         output.seek(0)
         st.download_button("📥 Download Result as Excel", data=output, file_name="Excel_Analysis_Summary.xlsx")
 
+# Uploaded file section
 if uploaded_file is not None:
     file_type = uploaded_file.name.split('.')[-1].lower()
 
     if file_type == "xlsx":
-        df_uploaded = pd.read_excel(uploaded_file, sheet_name=sheet_name)
-        st.dataframe(df_uploaded.head())
-        analysis = analyze_df(df_uploaded, columns)
-        st.json(analysis)
+        try:
+            excel_preview = pd.ExcelFile(uploaded_file)
+            sheet_names = excel_preview.sheet_names
+            selected_sheet_name = st.selectbox("Select sheet to analyze", sheet_names)
 
-        col_list = [c.strip() for c in columns.split(',') if c.strip() and c.strip() in df_uploaded.columns]
-        for col in col_list:
-            st.write(f"### Histogram for {col}")
-            fig, ax = plt.subplots()
-            sns.histplot(df_uploaded[col], bins=20, kde=True, ax=ax)
-            st.pyplot(fig)
+            df_uploaded = pd.read_excel(uploaded_file, sheet_name=selected_sheet_name)
+            st.dataframe(df_uploaded.head())
+            analysis = analyze_df(df_uploaded, columns)
+            st.json(analysis)
 
-        if len(col_list) >= 2:
-            st.write("### Correlation Heatmap")
-            fig, ax = plt.subplots()
-            sns.heatmap(df_uploaded[col_list].corr(), annot=True, cmap='coolwarm', ax=ax)
-            st.pyplot(fig)
+            col_list = [c.strip() for c in columns.split(',') if c.strip() and c.strip() in df_uploaded.columns]
+            for col in col_list:
+                st.write(f"### Histogram for {col}")
+                fig, ax = plt.subplots()
+                sns.histplot(df_uploaded[col], bins=20, kde=True, ax=ax)
+                st.pyplot(fig)
 
-            st.write("### Boxplot & Scatterplot")
-            fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-            sns.boxplot(data=df_uploaded[col_list], ax=axes[0])
-            sns.scatterplot(x=col_list[0], y=col_list[1], data=df_uploaded, ax=axes[1])
-            st.pyplot(fig)
+            if len(col_list) >= 2:
+                st.write("### Correlation Heatmap")
+                fig, ax = plt.subplots()
+                sns.heatmap(df_uploaded[col_list].corr(), annot=True, cmap='coolwarm', ax=ax)
+                st.pyplot(fig)
+
+                st.write("### Boxplot & Scatterplot")
+                fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+                sns.boxplot(data=df_uploaded[col_list], ax=axes[0])
+                sns.scatterplot(x=col_list[0], y=col_list[1], data=df_uploaded, ax=axes[1])
+                st.pyplot(fig)
+
+            # AI summary
+            if not df_uploaded.empty:
+                st.write("### AI Summary")
+                summary = []
+                for col in col_list:
+                    vals = pd.to_numeric(df_uploaded[col], errors='coerce').dropna()
+                    if not vals.empty:
+                        summary.append(f"- Column **{col}** has mean `{vals.mean():.2f}`, median `{vals.median():.2f}`, and std `{vals.std():.2f}`")
+                st.markdown("\n".join(summary))
+
+        except Exception as e:
+            st.error(f"Error reading Excel file: {e}")
 
     elif file_type == "pdf":
         reader = PyPDF2.PdfReader(uploaded_file)
@@ -125,13 +146,3 @@ if uploaded_file is not None:
         doc = docx.Document(uploaded_file)
         text = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
         st.text_area("Word Document Content", text, height=300)
-
-    if file_type in ["xlsx"] and not df_uploaded.empty:
-        # Generate basic AI-style summary
-        st.write("### AI Summary")
-        summary = []
-        for col in col_list:
-            vals = pd.to_numeric(df_uploaded[col], errors='coerce').dropna()
-            if not vals.empty:
-                summary.append(f"- Column **{col}** has mean `{vals.mean():.2f}`, median `{vals.median():.2f}`, and std `{vals.std():.2f}`")
-        st.markdown("\n".join(summary))
