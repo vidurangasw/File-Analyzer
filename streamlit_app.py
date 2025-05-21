@@ -131,13 +131,32 @@ if st.button("Download & Analyze Excel Files") and "excel_links" in st.session_s
     filepaths = download_excel_files(st.session_state["excel_links"])
     if filepaths:
         st.info(f"Downloaded {len(filepaths)} files. Starting analysis...")
-        df_result = analyze_files(filepaths, sheet_name, columns)
-        st.markdown("### 🔗 Analysis Results with File Links")
-        st.markdown(df_result.to_markdown(index=False), unsafe_allow_html=True)
+
+        def analyze_files_with_links(filepaths, sheet, columns):
+            results = []
+            for path in filepaths:
+                try:
+                    df = pd.read_excel(path, sheet_name=sheet)
+                    link = next((url for url in st.session_state["excel_links"] if os.path.basename(url) == os.path.basename(path)), None)
+                    display_link = f'<a href="{link}" target="_blank">{os.path.basename(path)}</a>' if link else os.path.basename(path)
+                    row = {"File": display_link}
+                    row.update(analyze_df(df, columns))
+                    results.append(row)
+                except Exception as e:
+                    results.append({"File": os.path.basename(path), "Error": str(e)})
+            return pd.DataFrame(results)
+
+        df_result = analyze_files_with_links(filepaths, sheet_name, columns)
+        st.markdown("### 🔗 Analysis Results with File Links", unsafe_allow_html=True)
+        st.write(df_result.to_html(escape=False, index=False), unsafe_allow_html=True)
+
         output = io.BytesIO()
-        df_result.to_excel(output, index=False, engine='openpyxl')
+        df_plain = df_result.copy()
+        df_plain['File'] = df_plain['File'].apply(lambda x: BeautifulSoup(x, "html.parser").text if isinstance(x, str) else x)
+        df_plain.to_excel(output, index=False, engine='openpyxl')
         output.seek(0)
         st.download_button("📥 Download Result as Excel", data=output, file_name="Excel_Analysis_Summary.xlsx")
+
 
 # Uploaded file section
 if uploaded_file is not None:
