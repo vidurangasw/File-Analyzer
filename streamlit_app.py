@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import os
+import io
 
 st.set_page_config(page_title="Excel File Analyzer", layout="wide")
 st.title("📊 Excel File Analyzer from Web URL")
@@ -77,4 +78,15 @@ if st.button("Download & Analyze Excel Files") and "excel_links" in st.session_s
         st.info(f"Downloaded {len(filepaths)} files. Starting analysis...")
         df_result = analyze_files(filepaths, sheet_name, columns)
         st.dataframe(df_result)
-        st.download_button("Download Result as Excel", data=df_result.to_excel(index=False), file_name="Excel_Analysis_Summary.xlsx")
+
+        # Prepare Excel download
+        output = io.BytesIO()
+        df_result.to_excel(output, index=False, engine='openpyxl')
+        output.seek(0)
+
+        st.download_button(
+            label="📥 Download Result as Excel",
+            data=output,
+            file_name="Excel_Analysis_Summary.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
