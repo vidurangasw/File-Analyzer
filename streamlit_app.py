@@ -95,6 +95,14 @@ def analyze_df(df, columns):
             clean = pd.to_numeric(df[col], errors='coerce').dropna()
             row[f"{col} Min"] = clean.min()
             row[f"{col} Max"] = clean.max()
+
+    # Also analyze Latitude and Longitude if available
+    for geo_col in ['Latitude', 'Longitude']:
+        if geo_col in df.columns:
+            clean = pd.to_numeric(df[geo_col], errors='coerce').dropna()
+            row[f"{geo_col} Min"] = clean.min()
+            row[f"{geo_col} Max"] = clean.max()
+
     return row
 
 def download_excel_files(links):
